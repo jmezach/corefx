@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace System.IO.Tests
@@ -34,9 +35,49 @@ namespace System.IO.Tests
             Assert.Equal(expected, Path.ChangeExtension(path, newExtension));
         }
 
+        [Fact]
+        public static void GetDirectoryName_EmptyThrows()
+        {
+            AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetDirectoryName(string.Empty));
+        }
+
+        [Theory,
+            InlineData(" "),
+            InlineData("\r\n")]
+        public static void GetDirectoryName_SpaceOrControlCharsThrowOnWindows(string path)
+        {
+            Action action = () => Path.GetDirectoryName(path);
+            if (PlatformDetection.IsWindows)
+            {
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetDirectoryName(path));
+            }
+            else
+            {
+                // These are valid paths on Unix
+                action();
+            }
+        }
+
+        [Theory]
+        [InlineData("\u00A0")] // Non-breaking Space
+        [InlineData("\u2028")] // Line separator
+        [InlineData("\u2029")] // Paragraph separator
+        public static void GetDirectoryName_NonControl(string path)
+        {
+            Assert.Equal(string.Empty, Path.GetDirectoryName(path));
+        }
+
+        [Theory]
+        [InlineData("\u00A0")] // Non-breaking Space
+        [InlineData("\u2028")] // Line separator
+        [InlineData("\u2029")] // Paragraph separator
+        public static void GetDirectoryName_NonControlWithSeparator(string path)
+        {
+            Assert.Equal(path, Path.GetDirectoryName(Path.Combine(path, path)));
+        }
+
         [Theory]
         [InlineData(null, null)]
-        [InlineData("", null)]
         [InlineData(".", "")]
         [InlineData("..", "")]
         [InlineData("baz", "")]
@@ -172,11 +213,20 @@ namespace System.IO.Tests
         }
 
         [Fact]
-        public static void GetPathRoot()
+        public static void GetPathRoot_NullReturnsNull()
         {
             Assert.Null(Path.GetPathRoot(null));
-            Assert.Equal(string.Empty, Path.GetPathRoot(string.Empty));
+        }
 
+        [Fact]
+        public static void GetPathRoot_EmptyThrows()
+        {
+            AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetPathRoot(string.Empty));
+        }
+
+        [Fact]
+        public static void GetPathRoot_Basic()
+        {
             string cwd = Directory.GetCurrentDirectory();
             Assert.Equal(cwd.Substring(0, cwd.IndexOf(Path.DirectorySeparatorChar) + 1), Path.GetPathRoot(cwd));
             Assert.True(Path.IsPathRooted(cwd));
@@ -237,7 +287,16 @@ namespace System.IO.Tests
             Assert.False(Path.IsPathRooted(uncPath));
             Assert.Equal(string.Empty, Path.GetPathRoot(uncPath));
         }
-        
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData(" ")]
+        public static void IsPathRooted(string path)
+        {
+            Assert.False(Path.IsPathRooted(path));
+        }
+
         // Testing invalid drive letters !(a-zA-Z)
         [PlatformSpecific(TestPlatforms.Windows)]
         [Theory]
@@ -245,6 +304,7 @@ namespace System.IO.Tests
         [InlineData(@"[:\\")]       // 091 = [     090 = Z
         [InlineData(@"`:\foo")]    // 096 = `     097 = a
         [InlineData(@"{:\\")]       // 123 = {     122 = z
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "Bug fixed on Core where it would return true if the first char is not a drive letter followed by a VolumeSeparatorChar coreclr/10297")]
         public static void IsPathRooted_Windows_Invalid(string value)
         {
             Assert.False(Path.IsPathRooted(value));
@@ -275,18 +335,18 @@ namespace System.IO.Tests
             Assert.All(Path.GetInvalidPathChars(), c =>
             {
                 string bad = c.ToString();
-                Assert.Throws<ArgumentException>(() => Path.ChangeExtension(bad, "ok"));
-                Assert.Throws<ArgumentException>(() => Path.Combine(bad, "ok"));
-                Assert.Throws<ArgumentException>(() => Path.Combine("ok", "ok", bad));
-                Assert.Throws<ArgumentException>(() => Path.Combine("ok", "ok", bad, "ok"));
-                Assert.Throws<ArgumentException>(() => Path.Combine(bad, bad, bad, bad, bad));
-                Assert.Throws<ArgumentException>(() => Path.GetDirectoryName(bad));
-                Assert.Throws<ArgumentException>(() => Path.GetExtension(bad));
-                Assert.Throws<ArgumentException>(() => Path.GetFileName(bad));
-                Assert.Throws<ArgumentException>(() => Path.GetFileNameWithoutExtension(bad));
-                Assert.Throws<ArgumentException>(() => Path.GetFullPath(bad));
-                Assert.Throws<ArgumentException>(() => Path.GetPathRoot(bad));
-                Assert.Throws<ArgumentException>(() => Path.IsPathRooted(bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.ChangeExtension(bad, "ok"));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.Combine(bad, "ok"));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.Combine("ok", "ok", bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.Combine("ok", "ok", bad, "ok"));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.Combine(bad, bad, bad, bad, bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetDirectoryName(bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetExtension(bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetFileName(bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetFileNameWithoutExtension(bad));
+                AssertExtensions.Throws<ArgumentException>(c == 124 ? null : "path", null, () => Path.GetFullPath(bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetPathRoot(bad));
+                AssertExtensions.Throws<ArgumentException>("path", null, () => Path.IsPathRooted(bad));
             });
         }
 
@@ -396,12 +456,36 @@ namespace System.IO.Tests
             }
         }
 
-        [Fact]
+        [Theory]
+        [InlineData("\u0085")] // Next line
+        [InlineData("\u00A0")] // Non breaking space
+        [InlineData("\u2028")] // Line separator
+        [PlatformSpecific(TestPlatforms.Windows)]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)] // not NetFX
+        public static void GetFullPath_NonControlWhiteSpaceStays(string component)
+        {
+            // When not NetFX full path should not cut off component
+            string path = "C:\\Test" + component;
+            Assert.Equal(path, Path.GetFullPath(path));
+        }
 
+        [Theory]
+        [InlineData(" ")]
+        [InlineData("  ")]
+        [InlineData("   ")]
+        [PlatformSpecific(TestPlatforms.Windows)]
+        public static void GetFullPath_TrailingSpaceCut(string component)
+        {
+            // Windows cuts off any simple white space added to a path
+            string path = "C:\\Test" + component;
+            Assert.Equal("C:\\Test", Path.GetFullPath(path));
+        }
+
+        [Fact]
         public static void GetFullPath_InvalidArgs()
         {
             Assert.Throws<ArgumentNullException>(() => Path.GetFullPath(null));
-            Assert.Throws<ArgumentException>(() => Path.GetFullPath(string.Empty));
+            AssertExtensions.Throws<ArgumentException>("path", null, () => Path.GetFullPath(string.Empty));
         }
 
         public static IEnumerable<object[]> GetFullPath_BasicExpansions_TestData()
@@ -470,8 +554,15 @@ namespace System.IO.Tests
                 longPath.Append(Path.DirectorySeparatorChar).Append('a').Append(Path.DirectorySeparatorChar).Append('.');
             }
 
-            // Now no longer throws unless over ~32K
-            Assert.NotNull(Path.GetFullPath(longPath.ToString()));
+            if (PathFeatures.AreAllLongPathsAvailable())
+            {
+                // Now no longer throws unless over ~32K
+                Assert.NotNull(Path.GetFullPath(longPath.ToString()));
+            }
+            else
+            {
+                Assert.Throws<PathTooLongException>(() => Path.GetFullPath(longPath.ToString()));
+            }
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests Windows-specific invalid paths
@@ -484,12 +575,16 @@ namespace System.IO.Tests
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests Windows-specific invalid paths
-        [Fact]
-        public static void GetFullPath_Windows_URIFormatNotSupported()
+        [Theory]
+        [InlineData("http://www.microsoft.com")]
+        [InlineData("file://www.microsoft.com")]
+        public static void GetFullPath_Windows_URIFormatNotSupported(string path)
         {
             // Throws via our invalid colon filtering
-            Assert.Throws<NotSupportedException>(() => Path.GetFullPath("http://www.microsoft.com"));
-            Assert.Throws<NotSupportedException>(() => Path.GetFullPath("file://www.microsoft.com"));
+            if (!PathFeatures.IsUsingLegacyPathNormalization())
+            {
+                Assert.Throws<NotSupportedException>(() => Path.GetFullPath(path));
+            }
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests Windows-specific invalid paths
@@ -499,8 +594,15 @@ namespace System.IO.Tests
         [InlineData(@"C  :\somedir")]
         public static void GetFullPath_Windows_NotSupportedExceptionPaths(string path)
         {
-            // Many of these used to throw ArgumentException despite being documented as NotSupportedException
-            Assert.Throws<NotSupportedException>(() => Path.GetFullPath(path));
+            // Old path normalization throws ArgumentException, new one throws NotSupportedException
+            if (!PathFeatures.IsUsingLegacyPathNormalization())
+            {
+                Assert.Throws<NotSupportedException>(() => Path.GetFullPath(path));
+            }
+            else
+            {
+                AssertExtensions.Throws<ArgumentException>(null, () => Path.GetFullPath(path));
+            }
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests legitimate Windows paths that are now allowed
@@ -512,17 +614,33 @@ namespace System.IO.Tests
         [InlineData(@"\ .\")]
         public static void GetFullPath_Windows_LegacyArgumentExceptionPaths(string path)
         {
-            // These paths are legitimate Windows paths that can be created without extended syntax.
-            // We now allow them through.
-            Path.GetFullPath(path);
+            if (PathFeatures.IsUsingLegacyPathNormalization())
+            {
+                // We didn't allow these paths on < 4.6.2
+                AssertExtensions.Throws<ArgumentException>(null, () => Path.GetFullPath(path));
+            }
+            else
+            {
+                // These paths are legitimate Windows paths that can be created without extended syntax.
+                // We now allow them through.
+                Path.GetFullPath(path);
+            }
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests MaxPathNotTooLong on Windows
         [Fact]
         public static void GetFullPath_Windows_MaxPathNotTooLong()
         {
-            // Shouldn't throw anymore
-            Path.GetFullPath(@"C:\" + new string('a', 255) + @"\");
+            string value = @"C:\" + new string('a', 255) + @"\";
+            if (PathFeatures.AreAllLongPathsAvailable())
+            {
+                // Shouldn't throw anymore
+                Path.GetFullPath(value);
+            }
+            else
+            {
+                Assert.Throws<PathTooLongException>(() => Path.GetFullPath(value));
+            }
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests PathTooLong on Windows
@@ -553,15 +671,31 @@ namespace System.IO.Tests
             // (such as "md ...\"). We used to filter these out, but now allow them to prevent apps from
             // being blocked when they hit these paths.
             string curDir = Directory.GetCurrentDirectory();
-            Assert.NotEqual(
-                Path.GetFullPath(curDir + Path.DirectorySeparatorChar),
-                Path.GetFullPath(curDir + Path.DirectorySeparatorChar + ". " + Path.DirectorySeparatorChar));
-            Assert.NotEqual(
-                Path.GetFullPath(Path.GetDirectoryName(curDir) + Path.DirectorySeparatorChar),
-                Path.GetFullPath(curDir + Path.DirectorySeparatorChar + "..." + Path.DirectorySeparatorChar));
-            Assert.NotEqual(
-                Path.GetFullPath(Path.GetDirectoryName(curDir) + Path.DirectorySeparatorChar),
-                Path.GetFullPath(curDir + Path.DirectorySeparatorChar + ".. " + Path.DirectorySeparatorChar));
+            if (PathFeatures.IsUsingLegacyPathNormalization())
+            {
+                // Legacy path Path.GetFullePath() ignores . when there is less or more that two, when there is .. in the path it returns one directory up.
+                Assert.Equal(
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar),
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar + ". " + Path.DirectorySeparatorChar));
+                Assert.Equal(
+                    Path.GetFullPath(Path.GetDirectoryName(curDir) + Path.DirectorySeparatorChar),
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar + "..." + Path.DirectorySeparatorChar));
+                Assert.Equal(
+                    Path.GetFullPath(Path.GetDirectoryName(curDir) + Path.DirectorySeparatorChar),
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar + ".. " + Path.DirectorySeparatorChar));
+            }
+            else
+            {
+                Assert.NotEqual(
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar),
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar + ". " + Path.DirectorySeparatorChar));
+                Assert.NotEqual(
+                    Path.GetFullPath(Path.GetDirectoryName(curDir) + Path.DirectorySeparatorChar),
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar + "..." + Path.DirectorySeparatorChar));
+                Assert.NotEqual(
+                    Path.GetFullPath(Path.GetDirectoryName(curDir) + Path.DirectorySeparatorChar),
+                    Path.GetFullPath(curDir + Path.DirectorySeparatorChar + ".. " + Path.DirectorySeparatorChar));
+            }
         }
 
         [PlatformSpecific(TestPlatforms.Windows)]  // Tests Windows-specific paths
@@ -663,7 +797,7 @@ namespace System.IO.Tests
         {
             if (input.StartsWith(@"\\?\") && PathFeatures.IsUsingLegacyPathNormalization())
             {
-                Assert.Throws<ArgumentException>(() => Path.GetFullPath(input));
+                AssertExtensions.Throws<ArgumentException>(null, () => Path.GetFullPath(input));
             }
             else
             {
@@ -690,11 +824,11 @@ namespace System.IO.Tests
         [InlineData(@"\\LOCALHOST\..")]
         public static void GetFullPath_Windows_UNC_Invalid(string invalidPath)
         {
-            Assert.Throws<ArgumentException>(() => Path.GetFullPath(invalidPath));
+            AssertExtensions.Throws<ArgumentException>(null, () => Path.GetFullPath(invalidPath));
         }
 
+        [Fact]
         [PlatformSpecific(TestPlatforms.Windows)]  // Uses P/Invokes to get short path name
-        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsNanoServer))]
         public static void GetFullPath_Windows_83Paths()
         {
             // Create a temporary file name with a name longer than 8.3 such that it'll need to be shortened.
@@ -709,14 +843,20 @@ namespace System.IO.Tests
                     string shortName = sb.ToString();
 
                     // Make sure the shortened name expands back to the original one
-                    Assert.Equal(tempFilePath, Path.GetFullPath(shortName));
+                    // Sometimes shortening or GetFullPath is changing the casing of "temp" on some test machines: normalize both sides
+                    tempFilePath = Regex.Replace(tempFilePath, @"\\temp\\", @"\TEMP\",  RegexOptions.IgnoreCase);
+                    shortName = Regex.Replace(Path.GetFullPath(shortName), @"\\temp\\", @"\TEMP\",  RegexOptions.IgnoreCase);
+                    Assert.Equal(tempFilePath, shortName);
 
                     // Should work with device paths that aren't well-formed extended syntax
-                    Assert.Equal(@"\\.\" + tempFilePath, Path.GetFullPath(@"\\.\" + shortName));
-                    Assert.Equal(@"\\?\" + tempFilePath, Path.GetFullPath(@"//?/" + shortName));
+                    if (!PathFeatures.IsUsingLegacyPathNormalization())
+                    {
+                        Assert.Equal(@"\\.\" + tempFilePath, Path.GetFullPath(@"\\.\" + shortName));
+                        Assert.Equal(@"\\?\" + tempFilePath, Path.GetFullPath(@"//?/" + shortName));
 
-                    // Shouldn't mess with well-formed extended syntax
-                    Assert.Equal(@"\\?\" + shortName, Path.GetFullPath(@"\\?\" + shortName));
+                        // Shouldn't mess with well-formed extended syntax
+                        Assert.Equal(@"\\?\" + shortName, Path.GetFullPath(@"\\?\" + shortName));
+                    }
 
                     // Validate case where short name doesn't expand to a real file
                     string invalidShortName = @"S:\DOESNT~1\USERNA~1.RED\LOCALS~1\Temp\bg3ylpzp";

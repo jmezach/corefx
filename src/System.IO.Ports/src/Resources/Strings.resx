@@ -121,17 +121,11 @@
   <data name="IndexOutOfRange_IORaceCondition" xml:space="preserve">
     <value>Probable I/O race condition detected while copying memory.  The I/O package is not thread safe by default.  In multithreaded applications, a stream must be accessed in a thread-safe way, such as a thread-safe wrapper returned by TextReader's or TextWriter's Synchronized methods.  This also applies to classes like StreamWriter and StreamReader.</value>
   </data>
-  <data name="IO_BindHandleFailed" xml:space="preserve">
-    <value>BindHandle for ThreadPool failed on this handle.</value>
-  </data>
   <data name="IO_OperationAborted" xml:space="preserve">
     <value>The I/O operation has been aborted because of either a thread exit or an application request.</value>
   </data>
   <data name="NotSupported_UnseekableStream" xml:space="preserve">
     <value>Stream does not support seeking.</value>
-  </data>
-  <data name="IO_EOF_ReadBeyondEOF" xml:space="preserve">
-    <value>Unable to read beyond the end of the stream.</value>
   </data>
   <data name="ObjectDisposed_StreamClosed" xml:space="preserve">
     <value>Can not access a closed Stream.</value>
@@ -168,5 +162,11 @@
   </data>
   <data name="UnauthorizedAccess_IODenied_Path" xml:space="preserve">
     <value>Access to the port '{0}' is denied.</value>
+  </data>
+  <data name="PlatformNotSupported_IOPorts" xml:space="preserve">
+    <value>System.IO.Ports is currently only supported on Windows.</value>
+  </data>
+  <data name="PlatformNotSupported_SerialPort_GetPortNames" xml:space="preserve">
+    <value>Enumeration of serial port names is not supported on the current platform.</value>
   </data>
 </root>

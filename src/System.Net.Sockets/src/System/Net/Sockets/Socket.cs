@@ -1203,7 +1203,6 @@ namespace System.Net.Sockets
             ValidateBlockingMode();
             if (NetEventSource.IsEnabled) NetEventSource.Info(this, $"SRC:{LocalEndPoint} DST:{RemoteEndPoint} size:{size}");
 
-            // This can throw ObjectDisposedException.
             int bytesTransferred;
             errorCode = SocketPal.Send(_handle, buffer, offset, size, socketFlags, out bytesTransferred);
 
@@ -1239,6 +1238,36 @@ namespace System.Net.Sockets
                 NetEventSource.Exit(this, bytesTransferred);
             }
 
+            return bytesTransferred;
+        }
+
+        public int Send(ReadOnlySpan<byte> buffer) => Send(buffer, SocketFlags.None);
+
+        public int Send(ReadOnlySpan<byte> buffer, SocketFlags socketFlags)
+        {
+            int bytesTransferred = Send(buffer, socketFlags, out SocketError errorCode);
+            return errorCode == SocketError.Success ?
+                bytesTransferred :
+                throw new SocketException((int)errorCode);
+        }
+
+        public int Send(ReadOnlySpan<byte> buffer, SocketFlags socketFlags, out SocketError errorCode)
+        {
+            if (NetEventSource.IsEnabled) NetEventSource.Enter(this);
+            if (CleanedUp) throw new ObjectDisposedException(GetType().FullName);
+            ValidateBlockingMode();
+
+            int bytesTransferred;
+            errorCode = SocketPal.Send(_handle, buffer, socketFlags, out bytesTransferred);
+
+            if (errorCode != SocketError.Success)
+            {
+                UpdateStatusAfterSocketError(errorCode);
+                if (NetEventSource.IsEnabled) NetEventSource.Error(this, new SocketException((int)errorCode));
+                bytesTransferred = 0;
+            }
+
+            if (NetEventSource.IsEnabled) NetEventSource.Exit(this, bytesTransferred);
             return bytesTransferred;
         }
 
@@ -1314,7 +1343,6 @@ namespace System.Net.Sockets
             EndPoint endPointSnapshot = remoteEP;
             Internals.SocketAddress socketAddress = SnapshotAndSerialize(ref endPointSnapshot);
 
-            // This can throw ObjectDisposedException.
             int bytesTransferred;
             SocketError errorCode = SocketPal.SendTo(_handle, buffer, offset, size, socketFlags, socketAddress.Buffer, socketAddress.Size, out bytesTransferred);
 
@@ -1461,6 +1489,36 @@ namespace System.Net.Sockets
                 NetEventSource.Exit(this, bytesTransferred);
             }
 
+            return bytesTransferred;
+        }
+
+        public int Receive(Span<byte> buffer) => Receive(buffer, SocketFlags.None);
+
+        public int Receive(Span<byte> buffer, SocketFlags socketFlags)
+        {
+            int bytesTransferred = Receive(buffer, socketFlags, out SocketError errorCode);
+            return errorCode == SocketError.Success ?
+                bytesTransferred :
+                throw new SocketException((int)errorCode);
+        }
+
+        public int Receive(Span<byte> buffer, SocketFlags socketFlags, out SocketError errorCode)
+        {
+            if (NetEventSource.IsEnabled) NetEventSource.Enter(this);
+            if (CleanedUp) throw new ObjectDisposedException(GetType().FullName);
+            ValidateBlockingMode();
+
+            int bytesTransferred;
+            errorCode = SocketPal.Receive(_handle, buffer, socketFlags, out bytesTransferred);
+
+            if (errorCode != SocketError.Success)
+            {
+                UpdateStatusAfterSocketError(errorCode);
+                if (NetEventSource.IsEnabled) NetEventSource.Error(this, new SocketException((int)errorCode));
+                bytesTransferred = 0;
+            }
+
+            if (NetEventSource.IsEnabled) NetEventSource.Exit(this, bytesTransferred);
             return bytesTransferred;
         }
 
@@ -1686,7 +1744,6 @@ namespace System.Net.Sockets
             Internals.SocketAddress socketAddress = SnapshotAndSerialize(ref endPointSnapshot);
             Internals.SocketAddress socketAddressOriginal = IPEndPointExtensions.Serialize(endPointSnapshot);
 
-            // This can throw ObjectDisposedException.
             int bytesTransferred;
             SocketError errorCode = SocketPal.ReceiveFrom(_handle, buffer, offset, size, socketFlags, socketAddress.Buffer, ref socketAddress.InternalSize, out bytesTransferred);
 
@@ -1770,13 +1827,10 @@ namespace System.Net.Sockets
 
             int realOptionLength = 0;
 
-            //
             // IOControl is used for Windows-specific IOCTL operations.  If we need to add support for IOCTLs specific
             // to other platforms, we will likely need to add a new API, as the control codes may overlap with those 
             // from Windows.  Generally it would be preferable to add new methods/properties to abstract these across
             // platforms, however.
-            //
-            // This can throw ObjectDisposedException.
             SocketError errorCode = SocketPal.WindowsIoctl(_handle, ioControlCode, optionInValue, optionOutValue, out realOptionLength);
 
             if (NetEventSource.IsEnabled) NetEventSource.Info(this, $"Interop.Winsock.WSAIoctl returns errorCode:{errorCode}");
@@ -3631,7 +3685,7 @@ namespace System.Net.Sockets
 
         // Routine Description:
         // 
-        //    BeginAccept - Does a async winsock accept, creating a new socket on success
+        //    BeginAccept - Does an async winsock accept, creating a new socket on success
         // 
         //     Works by creating a pending accept request the first time,
         //     and subsequent calls are queued so that when the first accept completes,
@@ -4513,7 +4567,6 @@ namespace System.Net.Sockets
         {
             if (NetEventSource.IsEnabled) NetEventSource.Enter(this, endPointSnapshot);
 
-            // This can throw ObjectDisposedException.
             SocketError errorCode = SocketPal.Connect(_handle, socketAddress.Buffer, socketAddress.Size);
 #if TRACE_VERBOSE
             if (NetEventSource.IsEnabled)
@@ -4636,7 +4689,7 @@ namespace System.Net.Sockets
                         else
                         {
                             int unused;
-                            errorCode = SocketPal.Receive(_handle, null, 0, 0, SocketFlags.None, out unused);
+                            errorCode = SocketPal.Receive(_handle, Array.Empty<byte>(), 0, 0, SocketFlags.None, out unused);
                             if (NetEventSource.IsEnabled) NetEventSource.Info(this, $"handle:{_handle} recv():{errorCode}");
 
                             if (errorCode != (SocketError)0)

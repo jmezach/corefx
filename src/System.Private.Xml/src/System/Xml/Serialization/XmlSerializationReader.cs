@@ -119,10 +119,11 @@ namespace System.Xml.Serialization
 
         protected abstract void InitIDs();
 
-#if uapaot
+#if FEATURE_SERIALIZATION_UAPAOT
         // this method must be called before any generated deserialization methods are called
-        internal void Init(XmlReader r, string encodingStyle)
+        internal void Init(XmlReader r, XmlDeserializationEvents events, string encodingStyle)
         {
+            _events = events;
             _r = r;
             _soap12 = (encodingStyle == Soap12.Encoding);
 
@@ -2147,6 +2148,7 @@ namespace System.Xml.Serialization
 #endif
     }
 
+#if !XMLSERIALIZERGENERATOR
     ///<internalonly/>
     public delegate void XmlSerializationFixupCallback(object fixup);
 
@@ -2156,4 +2158,5 @@ namespace System.Xml.Serialization
 
     ///<internalonly/>
     public delegate object XmlSerializationReadCallback();
+#endif
 }

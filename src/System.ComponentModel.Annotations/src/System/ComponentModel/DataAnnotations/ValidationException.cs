@@ -9,7 +9,6 @@ namespace System.ComponentModel.DataAnnotations
     /// <summary>
     ///     Exception used for validation using <see cref="ValidationAttribute" />.
     /// </summary>
-    [Serializable]
     public class ValidationException : Exception
     {
         private ValidationResult _validationResult;
@@ -78,12 +77,13 @@ namespace System.ComponentModel.DataAnnotations
         protected ValidationException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         /// <summary>
         ///     Gets the <see>ValidationAttribute</see> instance that triggered this exception.
         /// </summary>
-        public ValidationAttribute ValidationAttribute { get; private set; }
+        public ValidationAttribute ValidationAttribute { get; }
 
         /// <summary>
         ///     Gets the <see cref="ValidationResult" /> instance that describes the validation error.
@@ -106,6 +106,6 @@ namespace System.ComponentModel.DataAnnotations
         /// <summary>
         ///     Gets the value that caused the validating attribute to trigger the exception
         /// </summary>
-        public object Value { get; private set; }
+        public object Value { get; }
     }
 }

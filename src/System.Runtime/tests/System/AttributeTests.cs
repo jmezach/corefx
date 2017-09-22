@@ -109,7 +109,7 @@ namespace System.Tests
 
             // The implementation of Attribute.GetHashCode uses reflection to
             // enumerate fields. On .NET core, we add `BindingFlags.DeclaredOnly`
-            // to fix a bug where the hash code of a a subclass of an attribute can
+            // to fix a bug where the hash code of a subclass of an attribute can
             // be equal to an instance of the parent class.
             // See https://github.com/dotnet/coreclr/pull/6240
             Assert.Equal(PlatformDetection.IsFullFramework, s1.GetHashCode().Equals(s2.GetHashCode()));
@@ -157,6 +157,7 @@ namespace System.Tests
 
         [Fact]
         [StringValue("\uDFFF")]
+        [ActiveIssue("TFS 437293 - Invalid Utf8 string in custom attribute argument falls back to wrong value.", TargetFrameworkMonikers.UapAot)]
         public static void StringArgument_InvalidCodeUnits_FallbackUsed()
         {
             MethodInfo thisMethod = typeof(AttributeTests).GetTypeInfo().GetDeclaredMethod("StringArgument_InvalidCodeUnits_FallbackUsed");

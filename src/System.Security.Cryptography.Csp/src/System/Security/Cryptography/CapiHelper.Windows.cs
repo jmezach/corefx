@@ -250,11 +250,12 @@ namespace Internal.NativeCrypto
             // Go ahead and try to open the CSP.  If we fail, make sure the CSP
             // returned is 0 as that is going to be the error check in the caller.
             flags |= MapCspProviderFlags((int)cspParameters.Flags);
-            if (S_OK != AcquireCryptContext(out hProv, containerName, providerName, providerType, flags))
+            int hr = AcquireCryptContext(out hProv, containerName, providerName, providerType, flags);
+            if (hr != S_OK)
             {
                 hProv.Dispose();
                 safeProvHandle = SafeProvHandle.InvalidHandle;
-                return GetErrorCode();
+                return hr;
             }
 
             hProv.ContainerName = containerName;
@@ -304,7 +305,34 @@ namespace Internal.NativeCrypto
             if (parameters.ParentWindowHandle != IntPtr.Zero)
             {
                 IntPtr parentWindowHandle = parameters.ParentWindowHandle;
-                Interop.CryptSetProvParam(safeProvHandle, CryptGetProvParam.PP_CLIENT_HWND, ref parentWindowHandle, 0);
+
+                if (!Interop.CryptSetProvParamIndirectPtr(safeProvHandle, CryptGetProvParam.PP_CLIENT_HWND, ref parentWindowHandle, 0))
+                {
+                    throw GetErrorCode().ToCryptographicException();
+                }
+            }
+
+            if (parameters.KeyPassword != null)
+            {
+                IntPtr password = Marshal.SecureStringToCoTaskMemAnsi(parameters.KeyPassword);
+                try
+                {
+                    CryptGetProvParam param =
+                        (parameters.KeyNumber == (int)KeySpec.AT_SIGNATURE) ?
+                            CryptGetProvParam.PP_SIGNATURE_PIN :
+                            CryptGetProvParam.PP_KEYEXCHANGE_PIN;
+                    if (!Interop.CryptSetProvParam(safeProvHandle, param, password, 0))
+                    {
+                        throw GetErrorCode().ToCryptographicException();
+                    }
+                }
+                finally
+                {
+                    if (password != IntPtr.Zero)
+                    {
+                        Marshal.ZeroFreeCoTaskMemAnsi(password);
+                    }
+                }
             }
 
             return safeProvHandle;
@@ -903,7 +931,6 @@ namespace Internal.NativeCrypto
             Debug.Assert(outputCount >= 0);
             Debug.Assert(outputCount <= output.Length - outputOffset);
             Debug.Assert((inputCount % 8) == 0);
-            Debug.Assert((outputCount % 8) == 0);
 
             // Figure out how big the encrypted data will be
             int cbEncryptedData = inputCount;
@@ -927,6 +954,16 @@ namespace Internal.NativeCrypto
                 throw GetErrorCode().ToCryptographicException();
             }
             Debug.Assert(encryptedDataLength == cbEncryptedData);
+
+            if (isFinal)
+            {
+                Debug.Assert(outputCount == inputCount);
+            }
+            else
+            {
+                Debug.Assert(outputCount >= encryptedDataLength);
+                outputCount = encryptedDataLength;
+            }
 
             // If isFinal, padding was added so ignore it by using outputCount as size
             Buffer.BlockCopy(encryptedData, 0, output, outputOffset, outputCount);
@@ -953,7 +990,6 @@ namespace Internal.NativeCrypto
             Debug.Assert(outputCount >= 0);
             Debug.Assert(outputCount <= output.Length - outputOffset);
             Debug.Assert((inputCount % 8) == 0);
-            Debug.Assert((outputCount % 8) == 0);
 
             byte[] dataTobeDecrypted = new byte[inputCount];
             Buffer.BlockCopy(input, inputOffset, dataTobeDecrypted, 0, inputCount);
@@ -965,7 +1001,7 @@ namespace Internal.NativeCrypto
                 throw GetErrorCode().ToCryptographicException();
             }
 
-            Buffer.BlockCopy(dataTobeDecrypted, 0, output, outputOffset, outputCount);
+            Buffer.BlockCopy(dataTobeDecrypted, 0, output, outputOffset, decryptedDataLength);
 
             return decryptedDataLength;
         }
@@ -1478,9 +1514,13 @@ namespace Internal.NativeCrypto
             public static extern bool CryptGetProvParam(SafeProvHandle safeProvHandle, int dwParam, byte[] pbData,
                                                         ref int dwDataLen, int dwFlags);
 
+            [DllImport(Libraries.Advapi32, SetLastError = true, EntryPoint = "CryptSetProvParam")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool CryptSetProvParamIndirectPtr(SafeProvHandle safeProvHandle, CryptGetProvParam dwParam, ref IntPtr pbData, int dwFlags);
+
             [DllImport(Libraries.Advapi32, SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
-            public static extern bool CryptSetProvParam(SafeProvHandle safeProvHandle, CryptGetProvParam dwParam, ref IntPtr pbData, int dwFlags);
+            public static extern bool CryptSetProvParam(SafeProvHandle safeProvHandle, CryptGetProvParam dwParam, IntPtr pbData, int dwFlags);
 
             [DllImport(Libraries.Advapi32, SetLastError = true, EntryPoint = "CryptGetUserKey")]
             [return: MarshalAs(UnmanagedType.Bool)]
@@ -1682,6 +1722,8 @@ namespace Internal.NativeCrypto
         {
             PP_CLIENT_HWND = 1,
             PP_IMPTYPE = 3,
+            PP_KEYEXCHANGE_PIN = 32,
+            PP_SIGNATURE_PIN = 33,
             PP_UNIQUE_CONTAINER = 36
         }
 

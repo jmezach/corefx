@@ -13,7 +13,7 @@ using Xunit.Abstractions;
 
 namespace System.Net.Http.Functional.Tests
 {
-    public class CancellationTest
+    public class CancellationTest : HttpClientTestBase
     {
         private readonly ITestOutputHelper _output;
 
@@ -28,6 +28,8 @@ namespace System.Net.Http.Functional.Tests
         [InlineData(false, true)]
         [InlineData(true, false)]
         [InlineData(true, true)]
+        [ActiveIssue("dotnet/corefx #20010", TargetFrameworkMonikers.Uap)]
+        [ActiveIssue("dotnet/corefx #19038", TargetFrameworkMonikers.NetFramework)]
         public async Task GetAsync_ResponseContentRead_CancelUsingTimeoutOrToken_TaskCanceledQuickly(
             bool useTimeout, bool startResponseBody)
         {
@@ -35,8 +37,10 @@ namespace System.Net.Http.Functional.Tests
             TimeSpan timeout = useTimeout ? new TimeSpan(0, 0, 1) : Timeout.InfiniteTimeSpan;
             CancellationToken cancellationToken = useTimeout ? CancellationToken.None : cts.Token;
 
-            using (var client = new HttpClient() { Timeout = timeout })
+            using (HttpClient client = CreateHttpClient())
             {
+                client.Timeout = timeout;
+
                 var triggerResponseWrite = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var triggerRequestCancel = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -105,7 +109,7 @@ namespace System.Net.Http.Functional.Tests
         [InlineData(true)]
         public async Task ReadAsStreamAsync_ReadAsync_Cancel_TaskCanceledQuickly(bool startResponseBody)
         {
-            using (var client = new HttpClient())
+            using (HttpClient client = CreateHttpClient())
             {
                 await LoopbackServer.CreateServerAsync(async (server, url) =>
                 {

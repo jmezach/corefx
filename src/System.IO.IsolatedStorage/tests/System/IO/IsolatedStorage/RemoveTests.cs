@@ -6,10 +6,11 @@ using Xunit;
 
 namespace System.IO.IsolatedStorage
 {
-    [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "#18940")]
+    [ActiveIssue(18940, TargetFrameworkMonikers.UapAot)]
     public class RemoveTests : IsoStorageTest
     {
         [Fact]
+        [ActiveIssue("dotnet/corefx #18265", TargetFrameworkMonikers.NetFramework)]
         public void RemoveUserStoreForApplication()
         {
             TestHelper.WipeStores();
@@ -25,6 +26,7 @@ namespace System.IO.IsolatedStorage
         }
 
         [Fact]
+        [ActiveIssue("dotnet/corefx #18265", TargetFrameworkMonikers.NetFramework)]
         public void RemoveUserStoreForAssembly()
         {
             TestHelper.WipeStores();
@@ -40,6 +42,7 @@ namespace System.IO.IsolatedStorage
         }
 
         [Fact]
+        [ActiveIssue("dotnet/corefx #18265", TargetFrameworkMonikers.NetFramework)]
         public void RemoveUserStoreForDomain()
         {
             TestHelper.WipeStores();
@@ -56,7 +59,8 @@ namespace System.IO.IsolatedStorage
             }
         }
 
-        [Theory MemberData(nameof(ValidStores))]
+        [Theory, MemberData(nameof(ValidStores))]
+        [ActiveIssue("dotnet/corefx #18265", TargetFrameworkMonikers.NetFramework)]
         public void RemoveStoreWithContent(PresetScopes scope)
         {
             TestHelper.WipeStores();

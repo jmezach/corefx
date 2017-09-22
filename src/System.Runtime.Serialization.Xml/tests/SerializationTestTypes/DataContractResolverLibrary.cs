@@ -294,4 +294,111 @@ namespace SerializationTestTypes
             return t;
         }
     }
+
+    public class ResolverDefaultCollections : DataContractResolver
+    {
+        private readonly static string s_defaultNs = "http://www.default.com";
+        public override bool TryResolveType(Type dcType, Type declaredType, DataContractResolver KTResolver, out XmlDictionaryString typeName, out XmlDictionaryString typeNamespace)
+        {
+            string resolvedNamespace = string.Empty;
+            resolvedNamespace = s_defaultNs;
+            XmlDictionary dictionary = new XmlDictionary();
+            typeName = dictionary.Add(dcType.FullName);            
+            typeNamespace = dictionary.Add(resolvedNamespace);
+            return true;
+        }
+
+        public override Type ResolveName(string typeName, string typeNamespace, Type declaredType, DataContractResolver KTResolver)
+        {
+            if (typeNamespace.Equals(s_defaultNs))
+            {
+                if (typeName.Equals(typeof(Person).FullName))
+                {
+                    return typeof(Person);
+                }
+                if (typeName.Equals(typeof(CharClass).FullName))
+                {
+                    return typeof(CharClass);
+                }
+                if (typeName.Equals("System.String"))
+                {
+                    return typeof(string);
+                }
+                if (typeName.Equals(typeof(Version1).FullName))
+                {
+                    return typeof(Version1);
+                }
+                if (typeName.Equals(typeof(Employee).FullName))
+                {
+                    return typeof(Employee);
+                }
+            }
+
+            return KTResolver.ResolveName(typeName, typeNamespace, declaredType, null);
+        }
+    }
+
+    [Serializable]
+    public class SimpleResolver : DataContractResolver
+    {
+        private static readonly string s_defaultNS = "http://schemas.datacontract.org/2004/07/";
+
+        private TypeLibraryManager _mgr = new TypeLibraryManager();
+
+        public override bool TryResolveType(Type dcType, Type declaredType, DataContractResolver KTResolver, out XmlDictionaryString typeName, out XmlDictionaryString typeNamespace)
+        {
+            string resolvedTypeName = string.Empty;
+            string resolvedNamespace = string.Empty;
+            XmlDictionary dic = new XmlDictionary();
+
+            if (_mgr.AllTypesList.Contains(dcType))
+            {
+                resolvedTypeName = dcType.FullName + "***";
+                resolvedNamespace = s_defaultNS + resolvedTypeName;
+                typeName = dic.Add(resolvedTypeName);
+                typeNamespace = dic.Add(resolvedNamespace);
+            }
+            else
+            {
+                KTResolver.TryResolveType(dcType, declaredType, null, out typeName, out typeNamespace);
+            }
+            if (typeName == null || typeNamespace == null)
+            {
+                XmlDictionary dictionary = new XmlDictionary();
+                typeName = dictionary.Add(dcType.FullName);
+                typeNamespace = dictionary.Add(dcType.Assembly.FullName);
+            }
+            return true;
+        }
+
+        public override Type ResolveName(string typeName, string typeNamespace, Type declaredType, DataContractResolver KTResolver)
+        {
+            TypeLibraryManager mgr = new TypeLibraryManager();
+            string inputTypeName = typeName.Trim('*');
+            Type result = null;
+            if (null != mgr.AllTypesHashtable[inputTypeName])
+            {
+                result = (Type)mgr.AllTypesHashtable[inputTypeName];
+            }
+            else
+            {
+                result = KTResolver.ResolveName(typeName, typeNamespace, declaredType, null);
+            }
+            if (null == result)
+            {
+                try
+                {
+                    result = Type.GetType(String.Format("{0}, {1}", typeName, typeNamespace));
+                }
+                catch (System.IO.FileLoadException)
+                {
+                    //Type.GetType throws exception on netfx if it cannot find a type while it just returns null on NetCore. 
+                    //The behavior difference of Type.GetType is a known issue. 
+                    //Catch the exception so that test case can pass on netfx.
+                    return null;
+                }
+            }
+            return result;
+        }
+    }
 }

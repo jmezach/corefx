@@ -18,6 +18,7 @@ namespace Microsoft.XmlSerializer.Generator
     using System.Runtime.Versioning;
     using System.Collections.Generic;
     using System.Xml;
+    using System.Xml.Serialization;
 
     internal class XmlSerializationWriterCodeGen : XmlSerializationCodeGen
     {
@@ -402,7 +403,7 @@ namespace Microsoft.XmlSerializer.Generator
                 if (xmlnsMember >= 0)
                 {
                     MemberMapping member = mapping.Members[xmlnsMember];
-                    string source = "((" + typeof(XmlSerializerNamespaces).FullName + ")p[" + xmlnsMember.ToString(CultureInfo.InvariantCulture) + "])";
+                    string source = "((" + typeof(System.Xml.Serialization.XmlSerializerNamespaces).FullName + ")p[" + xmlnsMember.ToString(CultureInfo.InvariantCulture) + "])";
 
                     Writer.Write("if (pLength > ");
                     Writer.Write(xmlnsMember.ToString(CultureInfo.InvariantCulture));
@@ -2043,7 +2044,16 @@ namespace Microsoft.XmlSerializer.Generator
                 else if (type == typeof(Int32))
                     Writer.Write(((Int32)value).ToString(null, NumberFormatInfo.InvariantInfo));
                 else if (type == typeof(Double))
-                    Writer.Write(((Double)value).ToString("R", NumberFormatInfo.InvariantInfo));
+                {
+                    if (double.IsNaN((Double)value))
+                    {
+                        Writer.Write("double.NaN");
+                    }
+                    else
+                    {
+                        Writer.Write(((Double)value).ToString("R", NumberFormatInfo.InvariantInfo));
+                    }
+                }
                 else if (type == typeof(Boolean))
                     Writer.Write((bool)value ? "true" : "false");
                 else if ((type == typeof(Int16)) || (type == typeof(Int64)) || (type == typeof(UInt16)) || (type == typeof(UInt32)) || (type == typeof(UInt64)) || (type == typeof(Byte)) || (type == typeof(SByte)))
@@ -2057,8 +2067,15 @@ namespace Microsoft.XmlSerializer.Generator
                 }
                 else if (type == typeof(Single))
                 {
-                    Writer.Write(((Single)value).ToString("R", NumberFormatInfo.InvariantInfo));
-                    Writer.Write("f");
+                    if (Single.IsNaN((Single)value))
+                    {
+                        Writer.Write("System.Single.NaN");
+                    }
+                    else
+                    {
+                        Writer.Write(((Single)value).ToString("R", NumberFormatInfo.InvariantInfo));
+                        Writer.Write("f");
+                    }
                 }
                 else if (type == typeof(Decimal))
                 {
@@ -2073,12 +2090,21 @@ namespace Microsoft.XmlSerializer.Generator
                     Writer.Write(((DateTime)value).Ticks.ToString(CultureInfo.InvariantCulture));
                     Writer.Write(")");
                 }
+                else if (type == typeof(TimeSpan))
+                {
+                    Writer.Write(" new ");
+                    Writer.Write(type.FullName);
+                    Writer.Write("(");
+                    Writer.Write(((TimeSpan)value).Ticks.ToString(CultureInfo.InvariantCulture));
+                    Writer.Write(")");
+                }
                 else
                 {
                     if (type.IsEnum)
                     {
                         Writer.Write(((int)value).ToString(null, NumberFormatInfo.InvariantInfo));
                     }
+
                     else
                     {
                         throw new InvalidOperationException(SR.Format(SR.XmlUnsupportedDefaultType, type.FullName));

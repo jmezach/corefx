@@ -2,10 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
 using System.Net.Security;
-using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -67,8 +67,8 @@ namespace System.Data.SqlClient.SNI
             }
             catch(TimeoutException te)
             {
-                SNICommon.ReportSNIError(SNIProviders.NP_PROV, SNICommon.ConnTimeoutError, te);
-                _status = TdsEnums.SNI_WAIT_TIMEOUT;
+                SNICommon.ReportSNIError(SNIProviders.NP_PROV, SNICommon.ConnOpenFailedError, te);
+                _status = TdsEnums.SNI_ERROR;
                 return;
             }
             catch(IOException ioe)
@@ -160,7 +160,8 @@ namespace System.Data.SqlClient.SNI
 
                     if (packet.Length == 0)
                     {
-                        return ReportErrorAndReleasePacket(packet, 0, SNICommon.ConnTerminatedError, string.Empty);
+                        var e = new Win32Exception();
+                        return ReportErrorAndReleasePacket(packet, (uint)e.NativeErrorCode, 0, e.Message);
                     }
                 }
                 catch (ObjectDisposedException ode)

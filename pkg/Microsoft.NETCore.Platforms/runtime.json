@@ -26,7 +26,20 @@
         "android.21-arm64": {
             "#import": [ "android.21", "android-arm64" ]
         },
+        "alpine": {
+            "#import": [ "any" ]
+        },
 
+        "alpine-x64": {
+            "#import": [ "alpine" ]
+        },
+
+        "alpine.3.6": {
+            "#import": [ "alpine" ]
+        },
+        "alpine.3.6-x64": {
+            "#import": [ "alpine.3.6", "alpine-x64" ]
+        },
         "win": {
             "#import": [ "any" ]
         },
@@ -34,6 +47,12 @@
             "#import": [ "win" ]
         },
         "win-x64": {
+            "#import": [ "win" ]
+        },
+        "win-arm": {
+            "#import": [ "win" ]
+        },
+        "win-arm64": {
             "#import": [ "win" ]
         },
 
@@ -57,7 +76,7 @@
             "#import": [ "win8", "win7-x64" ]
         },
         "win8-arm": {
-            "#import": [ "win8" ]
+            "#import": [ "win8", "win-arm" ]
         },
 
         "win81": {
@@ -86,7 +105,7 @@
             "#import": [ "win10", "win81-arm" ]
         },
         "win10-arm64": {
-            "#import": [ "win10" ]
+            "#import": [ "win10", "win-arm64" ]
         },
 
         "aot": {
@@ -226,6 +245,13 @@
         },
         "rhel-x64": {
             "#import": [ "rhel", "linux-x64" ]
+        },
+
+        "rhel.6": {
+            "#import": [ "rhel" ]
+        },
+        "rhel.6-x64": {
+            "#import": [ "rhel.6", "rhel-x64" ]
         },
 
         "rhel.7": {
@@ -566,6 +592,13 @@
         },
         "opensuse.42.1-x64": {
             "#import": [ "opensuse.42.1", "opensuse-x64" ]
+        },
+
+        "gentoo": {
+            "#import": [ "linux" ]
+        },
+        "gentoo-x64": {
+            "#import": [ "gentoo", "linux-x64" ]
         },
 
         "corert": {

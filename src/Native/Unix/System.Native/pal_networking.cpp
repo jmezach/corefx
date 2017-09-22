@@ -9,6 +9,7 @@
 #include "pal_safecrt.h"
 
 #include <stdlib.h>
+#include <limits.h>
 #include <pthread.h>
 #include <arpa/inet.h>
 #include <assert.h>
@@ -723,9 +724,16 @@ extern "C" void SystemNative_FreeHostEntry(HostEntry* entry)
     }
 }
 
-inline int32_t ConvertGetNameInfoFlagsToNative(int32_t flags)
+// There were several versions of glibc that had the flags parameter of getnameinfo unsigned
+#if HAVE_GETNAMEINFO_SIGNED_FLAGS
+typedef int32_t NativeFlagsType;
+#else
+typedef uint32_t NativeFlagsType;
+#endif
+
+inline NativeFlagsType ConvertGetNameInfoFlagsToNative(int32_t flags)
 {
-    int32_t outFlags = 0;
+    NativeFlagsType outFlags = 0;
     if ((flags & PAL_NI_NAMEREQD) == PAL_NI_NAMEREQD)
     {
         outFlags |= NI_NAMEREQD;
@@ -752,7 +760,7 @@ extern "C" int32_t SystemNative_GetNameInfo(const uint8_t* address,
     assert((host != nullptr) || (service != nullptr));
     assert((hostLength > 0) || (serviceLength > 0));
 
-    int32_t nativeFlags = ConvertGetNameInfoFlagsToNative(flags);
+    NativeFlagsType nativeFlags = ConvertGetNameInfoFlagsToNative(flags);
     int32_t result;
 
     if (isIPv6)
@@ -1136,13 +1144,29 @@ SystemNative_SetIPv6Address(uint8_t* socketAddress, int32_t socketAddressLen, ui
     return PAL_SUCCESS;
 }
 
-static void ConvertMessageHeaderToMsghdr(msghdr* header, const MessageHeader& messageHeader)
+static bool IsStreamSocket(int socket)
 {
+    int type;
+    socklen_t length = sizeof(int);
+    return getsockopt(socket, SOL_SOCKET, SO_TYPE, &type, &length) == 0
+           && type == SOCK_STREAM;
+}
+
+static void ConvertMessageHeaderToMsghdr(msghdr* header, const MessageHeader& messageHeader, int socket = -1)
+{
+    // sendmsg/recvmsg can return EMSGSIZE when msg_iovlen is greather than IOV_MAX.
+    // We avoid this for stream sockets by truncating msg_iovlen to IOV_MAX. This is ok since sendmsg is
+    // not required to send all data and recvmsg can be called again to receive more.
+    auto iovlen = static_cast<decltype(header->msg_iovlen)>(messageHeader.IOVectorCount);
+    if (iovlen > IOV_MAX && IsStreamSocket(socket))
+    {
+        iovlen = static_cast<decltype(iovlen)>(IOV_MAX);
+    }
     *header = {
         .msg_name = messageHeader.SocketAddress,
         .msg_namelen = static_cast<unsigned int>(messageHeader.SocketAddressLen),
         .msg_iov = reinterpret_cast<iovec*>(messageHeader.IOVectors),
-        .msg_iovlen = static_cast<decltype(header->msg_iovlen)>(messageHeader.IOVectorCount),
+        .msg_iovlen = iovlen,
         .msg_control = messageHeader.ControlBuffer,
         .msg_controllen = static_cast<decltype(header->msg_controllen)>(messageHeader.ControlBufferLen),
     };
@@ -1569,7 +1593,7 @@ extern "C" Error SystemNative_ReceiveMessage(intptr_t socket, MessageHeader* mes
     }
 
     msghdr header;
-    ConvertMessageHeaderToMsghdr(&header, *messageHeader);
+    ConvertMessageHeaderToMsghdr(&header, *messageHeader, fd);
 
     ssize_t res;
     while (CheckInterrupted(res = recvmsg(fd, &header, socketFlags)));
@@ -1612,7 +1636,7 @@ extern "C" Error SystemNative_SendMessage(intptr_t socket, MessageHeader* messag
     }
 
     msghdr header;
-    ConvertMessageHeaderToMsghdr(&header, *messageHeader);
+    ConvertMessageHeaderToMsghdr(&header, *messageHeader, fd);
 
     ssize_t res;
     while (CheckInterrupted(res = sendmsg(fd, &header, flags)));
@@ -1637,7 +1661,7 @@ extern "C" Error SystemNative_Accept(intptr_t socket, uint8_t* socketAddress, in
 
     socklen_t addrLen = static_cast<socklen_t>(*socketAddressLen);
     int accepted;
-#if defined(HAVE_ACCEPT_4) && defined(SOCK_CLOEXEC)
+#if defined(HAVE_ACCEPT4) && defined(SOCK_CLOEXEC)
     while (CheckInterrupted(accepted = accept4(fd, reinterpret_cast<sockaddr*>(socketAddress), &addrLen, SOCK_CLOEXEC)));
 #else
     while (CheckInterrupted(accepted = accept(fd, reinterpret_cast<sockaddr*>(socketAddress), &addrLen)));
@@ -2341,7 +2365,8 @@ static Error TryChangeSocketEventRegistrationInner(
         op = EPOLL_CTL_DEL;
     }
 
-    epoll_event evt = {.events = GetEPollEvents(newEvents) | EPOLLET, .data = {.ptr = reinterpret_cast<void*>(data)}};
+    epoll_event evt = {.events = GetEPollEvents(newEvents) | static_cast<unsigned int>(EPOLLET),
+                       .data = {.ptr = reinterpret_cast<void*>(data)}};
     int err = epoll_ctl(port, op, socket, &evt);
     return err == 0 ? PAL_SUCCESS : SystemNative_ConvertErrorPlatformToPal(errno);
 }

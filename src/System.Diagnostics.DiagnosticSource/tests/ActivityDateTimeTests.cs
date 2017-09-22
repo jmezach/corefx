@@ -6,6 +6,7 @@ namespace System.Diagnostics.Tests
     public class ActivityDateTimeTests
     {
         [Fact]
+        [ActiveIssue("dotnet/corefx #19545", TargetFrameworkMonikers.NetFramework)]
         public void StartStopReturnsPreciseDuration()
         {
             var activity = new Activity("test");

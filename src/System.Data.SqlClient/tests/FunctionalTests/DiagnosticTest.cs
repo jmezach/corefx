@@ -18,14 +18,16 @@ using System.Runtime.CompilerServices;
 
 namespace System.Data.SqlClient.Tests
 {
+    [ActiveIssue("dotnet/corefx #17925", TestPlatforms.Any)]
     public class DiagnosticTest : RemoteExecutorTestBase
     {
         private const string BadConnectionString = "data source = bad; initial catalog = bad; uid = bad; password = bad; connection timeout = 1;";
-        private static readonly string s_tcpConnStr = $"\"{Environment.GetEnvironmentVariable("TEST_TCP_CONN_STR")}\"";
+        private static readonly string s_tcpConnStr = Environment.GetEnvironmentVariable("TEST_TCP_CONN_STR") ?? string.Empty;
         
-        public static bool IsConnectionStringConfigured() => s_tcpConnStr != "\"\"";
+        public static bool IsConnectionStringConfigured() => s_tcpConnStr != string.Empty;
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteScalarTest()
         {
             RemoteInvoke(() =>
@@ -47,6 +49,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteScalarErrorTest()
         {
             RemoteInvoke(() =>
@@ -70,6 +73,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteNonQueryTest()
         {
             RemoteInvoke(() =>
@@ -91,6 +95,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteNonQueryErrorTest()
         {
             RemoteInvoke(() =>
@@ -128,6 +133,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteReaderTest()
         {
             RemoteInvoke(() =>
@@ -150,6 +156,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteReaderErrorTest()
         {
             RemoteInvoke(() =>
@@ -175,6 +182,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteReaderWithCommandBehaviorTest()
         {
             RemoteInvoke(() =>
@@ -197,6 +205,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [ConditionalFact(nameof(IsConnectionStringConfigured))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteXmlReaderTest()
         {
             RemoteInvoke(cs =>
@@ -219,6 +228,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteXmlReaderErrorTest()
         {
             RemoteInvoke(() =>
@@ -244,6 +254,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteScalarAsyncTest()
         {
             RemoteInvoke(() =>
@@ -265,6 +276,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteScalarAsyncErrorTest()
         {
             RemoteInvoke(() =>
@@ -288,6 +300,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteNonQueryAsyncTest()
         {
             RemoteInvoke(() =>
@@ -309,6 +322,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteNonQueryAsyncErrorTest()
         {
             RemoteInvoke(() =>
@@ -331,6 +345,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteReaderAsyncTest()
         {
             RemoteInvoke(() =>
@@ -353,6 +368,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteReaderAsyncErrorTest()
         {
             RemoteInvoke(() =>
@@ -378,6 +394,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [ConditionalFact(nameof(IsConnectionStringConfigured))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteXmlReaderAsyncTest()
         {
             RemoteInvoke(cs =>
@@ -400,6 +417,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [ConditionalFact(nameof(IsConnectionStringConfigured))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ExecuteXmlReaderAsyncErrorTest()
         {
             RemoteInvoke(cs =>
@@ -425,6 +443,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ConnectionOpenTest()
         {
             RemoteInvoke(() =>
@@ -445,6 +464,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ConnectionOpenErrorTest()
         {
             RemoteInvoke(() =>
@@ -461,6 +481,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ConnectionOpenAsyncTest()
         {
             RemoteInvoke(() =>
@@ -477,6 +498,7 @@ namespace System.Data.SqlClient.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot)] // Internals reflection not supported on uapaot
         public void ConnectionOpenAsyncErrorTest()
         {
             RemoteInvoke(() =>
@@ -679,7 +701,7 @@ namespace System.Data.SqlClient.Tests
             {
 
                 Console.WriteLine(string.Format("Test: {0} Enabled Listeners", methodName));
-                using (var server = TestTdsServer.StartServerWithQueryEngine(new DiagnosticsQueryEngine(), enableLog:enableServerLogging))
+                using (var server = TestTdsServer.StartServerWithQueryEngine(new DiagnosticsQueryEngine(), enableLog:enableServerLogging, methodName: methodName))
                 {
                     Console.WriteLine(string.Format("Test: {0} Started Server", methodName));
                     sqlOperation(server.ConnectionString);
@@ -868,7 +890,7 @@ namespace System.Data.SqlClient.Tests
             using (DiagnosticListener.AllListeners.Subscribe(diagnosticListenerObserver))
             {
                 Console.WriteLine(string.Format("Test: {0} Enabled Listeners", methodName));
-                using (var server = TestTdsServer.StartServerWithQueryEngine(new DiagnosticsQueryEngine()))
+                using (var server = TestTdsServer.StartServerWithQueryEngine(new DiagnosticsQueryEngine(), methodName: methodName))
                 {
                     Console.WriteLine(string.Format("Test: {0} Started Server", methodName));
 

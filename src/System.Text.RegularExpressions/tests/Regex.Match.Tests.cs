@@ -3,12 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using Xunit;
 
 namespace System.Text.RegularExpressions.Tests
 {
-    public class RegexMatchTests
+    public class RegexMatchTests : RemoteExecutorTestBase
     {
         public static IEnumerable<object[]> Match_Basic_TestData()
         {
@@ -327,6 +328,21 @@ namespace System.Text.RegularExpressions.Tests
             Assert.Equal("a", match.Value);
         }
 
+        [Fact]
+        public void Match_Timeout_Throws()
+        {
+            RemoteInvoke(() =>
+            {
+                const string Pattern = @"^([0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*@(([0-9a-zA-Z])+([-\w]*[0-9a-zA-Z])*\.)+[a-zA-Z]{2,9})$";
+                string input = new string('a', 50) + "@a.a";
+
+                AppDomain.CurrentDomain.SetData(RegexHelpers.DefaultMatchTimeout_ConfigKeyName, TimeSpan.FromMilliseconds(100));
+                Assert.Throws<RegexMatchTimeoutException>(() => new Regex(Pattern).Match(input));
+
+                return SuccessExitCode;
+            });
+        }
+
         public static IEnumerable<object[]> Match_Advanced_TestData()
         {
             // \B special character escape: ".*\\B(SUCCESS)\\B.*"
@@ -595,7 +611,7 @@ namespace System.Text.RegularExpressions.Tests
             bool isDefaultCount = RegexHelpers.IsDefaultStart(input, options, length);
             if (options == RegexOptions.None)
             {
-                if (isDefaultStart  && isDefaultCount)
+                if (isDefaultStart && isDefaultCount)
                 {
                     // Use Match(string) or Match(string, string)
                     VerifyMatch(new Regex(pattern).Match(input), true, expected);
@@ -690,26 +706,31 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         [Fact]
-        public void Match_SpecialUnicodeCharacters()
+        public void Match_SpecialUnicodeCharacters_enUS()
         {
-            CultureInfo currentCulture = CultureInfo.CurrentCulture;
-            CultureInfo enUSCulture = new CultureInfo("en-US");
-            try
+            RemoteInvoke(() =>
             {
-                CultureInfo.CurrentCulture = enUSCulture;
+                CultureInfo.CurrentCulture = new CultureInfo("en-US");
                 Match("\u0131", "\u0049", RegexOptions.IgnoreCase, 0, 1, false, string.Empty);
                 Match("\u0131", "\u0069", RegexOptions.IgnoreCase, 0, 1, false, string.Empty);
 
+                return SuccessExitCode;
+            }).Dispose();
+        }
+
+        [Fact]
+        public void Match_SpecialUnicodeCharacters_Invariant()
+        {
+            RemoteInvoke(() =>
+            {
                 CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
                 Match("\u0131", "\u0049", RegexOptions.IgnoreCase, 0, 1, false, string.Empty);
                 Match("\u0131", "\u0069", RegexOptions.IgnoreCase, 0, 1, false, string.Empty);
                 Match("\u0130", "\u0049", RegexOptions.IgnoreCase, 0, 1, false, string.Empty);
                 Match("\u0130", "\u0069", RegexOptions.IgnoreCase, 0, 1, false, string.Empty);
-            }
-            finally
-            {
-                CultureInfo.CurrentCulture = currentCulture;
-            }
+
+                return SuccessExitCode;
+            }).Dispose();
         }
 
         [Fact]
@@ -755,7 +776,7 @@ namespace System.Text.RegularExpressions.Tests
         [InlineData("(?()|||||)")]
         public void Match_InvalidPattern(string pattern)
         {
-            Assert.Throws<ArgumentException>(() => Regex.Match("input", pattern));
+            AssertExtensions.Throws<ArgumentException>(null, () => Regex.Match("input", pattern));
         }
 
         [Fact]
