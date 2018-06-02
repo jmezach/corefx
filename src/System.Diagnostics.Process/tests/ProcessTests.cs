@@ -829,6 +829,18 @@ namespace System.Diagnostics.Tests
         }
 
         [Fact]
+        public void TestProcessNameWithStart()
+        {
+            string programToOpenWith = "/usr/bin/open";
+            string fileToOpen = "some-path";
+            using (var px = Process.Start(programToOpenWith, fileToOpen))
+            {
+                Console.WriteLine($"in OSX, {nameof(programToOpenWith)} is {programToOpenWith}, while {nameof(px.ProcessName)} is {px.ProcessName}.");
+                Assert.Equal(programToOpenWith, px.ProcessName); // on OSX, process name is dotnet for some reason
+            }
+        }
+
+        [Fact]
         public void ProcessName_GetNotStarted_ThrowsInvalidOperationException()
         {
             var process = new Process();
